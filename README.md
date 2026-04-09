@@ -17,6 +17,11 @@ Pre-rendered 3D assets in the chunky 90s CGI / CD-ROM kid-game aesthetic. Type a
 <img src="assets/mushroom_spin.gif" alt="spinning magical mushroom">
 </p>
 
+<p align="center">
+<code>puffbox model gift_box.glb --spin --frames 12 --size 256 --axis Z --rotate-z 45 --output puffbox.gif</code><br>
+<img src="assets/puffbox_spin.gif" alt="rotating wrapped present">
+</p>
+
 ## Install
 
 Needs Python 3.10+ and Blender 4.0+ on `$PATH` (or set `$BLENDER_BIN`).
