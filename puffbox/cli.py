@@ -24,6 +24,20 @@ def _add_common(p: argparse.ArgumentParser) -> None:
                    help="Open Blender GUI on the built scene; when you save and close Blender, puffbox renders whatever you set up automatically (one-shot edit flow)")
 
 
+def _add_mesh_transform(p: argparse.ArgumentParser) -> None:
+    """Pre-camera transforms applied to imported meshes (model/meshy/image only)."""
+    p.add_argument("--rotate-x", type=float, default=0,
+                   help="Rotate the imported mesh by N degrees on the X axis before framing")
+    p.add_argument("--rotate-y", type=float, default=0,
+                   help="Rotate the imported mesh by N degrees on the Y axis before framing")
+    p.add_argument("--rotate-z", type=float, default=0,
+                   help="Rotate the imported mesh by N degrees on the Z axis before framing")
+    p.add_argument("--mesh-scale", type=float, default=1.0,
+                   help="Uniform scale multiplier applied to the imported mesh")
+    p.add_argument("--center", action="store_true",
+                   help="Recenter the mesh's bounding box on origin before rotation")
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="puffbox",
@@ -39,15 +53,18 @@ def build_parser() -> argparse.ArgumentParser:
     p_model = sub.add_parser("model", help="Render an existing 3D model file")
     p_model.add_argument("model", help="Path to .glb/.fbx/.obj")
     _add_common(p_model)
+    _add_mesh_transform(p_model)
 
     p_meshy = sub.add_parser("meshy", help="Generate via Meshy AI text-to-3D then render")
     p_meshy.add_argument("prompt", help="Description for Meshy")
     p_meshy.add_argument("--skip-refine", action="store_true", help="Preview-only (faster)")
     _add_common(p_meshy)
+    _add_mesh_transform(p_meshy)
 
     p_image = sub.add_parser("image", help="Generate via Meshy AI image-to-3D then render")
     p_image.add_argument("image", help="Path to .png/.jpg/.jpeg image")
     _add_common(p_image)
+    _add_mesh_transform(p_image)
 
     p_resume = sub.add_parser("resume", help="Re-render a saved session (paused or done). Override size/frames/output to remix.")
     p_resume.add_argument("session_id")
@@ -133,6 +150,11 @@ def main(argv: list[str] | None = None) -> int:
             skip_refine=getattr(args, "skip_refine", False),
             edit=args.edit,
             fps=args.fps,
+            rotate_x=getattr(args, "rotate_x", 0.0),
+            rotate_y=getattr(args, "rotate_y", 0.0),
+            rotate_z=getattr(args, "rotate_z", 0.0),
+            mesh_scale=getattr(args, "mesh_scale", 1.0),
+            center=getattr(args, "center", False),
         )
         if args.pause_after_blend and args.edit:
             print("[error] --pause-after-blend and --edit are mutually exclusive", file=sys.stderr)

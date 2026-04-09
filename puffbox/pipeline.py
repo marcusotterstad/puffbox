@@ -38,6 +38,11 @@ class PipelineArgs:
     skip_refine: bool = False
     edit: bool = False             # if True: build scene → open Blender GUI → wait → render
     fps: float = 20.0              # frames per second when output is a .gif
+    rotate_x: float = 0.0          # pre-spin rotation, degrees (model/meshy/image only)
+    rotate_y: float = 0.0
+    rotate_z: float = 0.0
+    mesh_scale: float = 1.0        # uniform scale multiplier (model/meshy/image only)
+    center: bool = False           # recenter mesh bbox on origin before rotation
 
 
 @dataclass
@@ -170,6 +175,11 @@ def run(args: PipelineArgs, *, pause_after_blend: bool = False) -> Path | str:
             axis=args.axis,
             spin=args.spin,
             no_render=skip_initial_render,
+            rotate_x=args.rotate_x,
+            rotate_y=args.rotate_y,
+            rotate_z=args.rotate_z,
+            mesh_scale=args.mesh_scale,
+            center=args.center,
         )
     elif args.source == "meshy":
         glb_path = session_dir / "model.glb"
@@ -184,6 +194,11 @@ def run(args: PipelineArgs, *, pause_after_blend: bool = False) -> Path | str:
             axis=args.axis,
             spin=args.spin,
             no_render=skip_initial_render,
+            rotate_x=args.rotate_x,
+            rotate_y=args.rotate_y,
+            rotate_z=args.rotate_z,
+            mesh_scale=args.mesh_scale,
+            center=args.center,
         )
     elif args.source == "image":
         image_path = image_src.resolve(args.value)
@@ -199,6 +214,11 @@ def run(args: PipelineArgs, *, pause_after_blend: bool = False) -> Path | str:
             axis=args.axis,
             spin=args.spin,
             no_render=skip_initial_render,
+            rotate_x=args.rotate_x,
+            rotate_y=args.rotate_y,
+            rotate_z=args.rotate_z,
+            mesh_scale=args.mesh_scale,
+            center=args.center,
         )
     else:
         raise ValueError(f"Unknown source: {args.source}")

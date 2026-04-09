@@ -3,7 +3,7 @@
 Pre-rendered 3D assets in the chunky 90s CGI / CD-ROM kid-game aesthetic. Type a word or pass a `.glb`; Blender does the rest.
 
 <p align="center">
-<code>puffbox meshy "horseshoe magnet, half red half blue, cartoon" --spin --frames 12 --size 64 --axis Z --output magnet.gif</code><br>
+<code>puffbox image magnet.png --spin --frames 12 --size 64 --axis Z --rotate-x 180 --output magnet.gif</code><br>
 <img src="assets/magnet_spin.gif" alt="spinning cartoon horseshoe magnet">
 </p>
 
@@ -44,6 +44,8 @@ Output format is decided by the file extension on `--output`: `.gif` writes an a
 | `--edit` | open Blender GUI, render after you save and close |
 | `--fps N` | animation speed when output is a `.gif` (default 20) |
 | `--axis X\|Y\|Z`, `--angle N`, `--saturation`, `--brightness` | tweaks |
+| `--rotate-x N`, `--rotate-y N`, `--rotate-z N` | pre-spin rotate the imported mesh (degrees, model/meshy/image) |
+| `--mesh-scale F`, `--center` | scale / recenter the imported mesh |
 
 `--edit` opens Blender already in camera view with the timeline pre-set to `--frames`. Save and close — Puffbox auto-renders. If you keyframed an animation, you get a sprite sheet; if not, a single PNG. Output type is decided by what you built, not a flag.
 

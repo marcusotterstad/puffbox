@@ -166,11 +166,93 @@ def create_spin(objects, center, num_frames, axis='Z'):
     empty.keyframe_insert("rotation_euler", index=axis_idx, frame=0)
     empty.rotation_euler[axis_idx] = math.radians(360)
     empty.keyframe_insert("rotation_euler", index=axis_idx, frame=num_frames)
+
+    # Force rigorous linear interpolation. Just setting kf.interpolation isn't
+    # enough — Blender's bezier handles can still produce ease in/out unless
+    # the handle TYPES are also forced to VECTOR (which makes the handles point
+    # straight at the next/previous keyframe). Without this you get slow-fast-slow.
     if empty.animation_data and empty.animation_data.action:
         for fc in empty.animation_data.action.fcurves:
+            fc.extrapolation = 'LINEAR'
             for kf in fc.keyframe_points:
                 kf.interpolation = 'LINEAR'
+                kf.handle_left_type = 'VECTOR'
+                kf.handle_right_type = 'VECTOR'
+            fc.update()
     return empty
+
+
+def apply_mesh_transform(objects, rotate_x_deg, rotate_y_deg, rotate_z_deg, scale, center):
+    """Rotate / scale / re-center imported meshes BEFORE camera framing.
+
+    Two Blender quirks make this trickier than it looks:
+
+    1. GLB exports frequently put the local origin at world (0,0,0) regardless
+       of where the geometry actually sits. A naive rotation_euler then rotates
+       the mesh around an off-center pivot, moving the mesh through space
+       instead of flipping it in place. Fix: use `origin_set` with
+       'ORIGIN_GEOMETRY' to relocate the local origin to the geometric center.
+
+    2. In background mode, setting `obj.rotation_euler` does NOT propagate to
+       `obj.matrix_world` even after `view_layer.update()` — the matrix_world
+       stays cached at the original value, and the renderer sees no rotation.
+       Fix: assign a composed rotation matrix directly to `obj.matrix_world`,
+       which forces the update through.
+    """
+    import mathutils
+
+    if not (center or rotate_x_deg or rotate_y_deg or rotate_z_deg or scale != 1.0):
+        return  # no-op fast path
+
+    # Find unique topmost ancestors. For a flat GLB import this is the meshes
+    # themselves; for a hierarchy this is the root empty(s).
+    seen = set()
+    roots = []
+    for obj in objects:
+        top = obj
+        while top.parent is not None:
+            top = top.parent
+        if top.name not in seen:
+            seen.add(top.name)
+            roots.append(top)
+
+    # Step 1: recenter local origins on the geometry. Only meaningful for MESH
+    # objects. Without this, rotation pivots around an arbitrary point.
+    bpy.ops.object.select_all(action='DESELECT')
+    mesh_targets = []
+    for r in roots:
+        if r.type == 'MESH':
+            mesh_targets.append(r)
+        for child in (r.children_recursive if hasattr(r, 'children_recursive') else []):
+            if child.type == 'MESH':
+                mesh_targets.append(child)
+    if mesh_targets:
+        for m in mesh_targets:
+            m.select_set(True)
+        bpy.context.view_layer.objects.active = mesh_targets[0]
+        bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY', center='BOUNDS')
+
+    bpy.context.view_layer.update()
+
+    # Step 2: build the rotation+scale matrix and assign to matrix_world.
+    # Direct matrix_world assignment is what actually propagates through to
+    # the renderer in background mode.
+    rot = (
+        mathutils.Matrix.Rotation(math.radians(rotate_x_deg), 4, 'X') @
+        mathutils.Matrix.Rotation(math.radians(rotate_y_deg), 4, 'Y') @
+        mathutils.Matrix.Rotation(math.radians(rotate_z_deg), 4, 'Z')
+    )
+    scl = mathutils.Matrix.Scale(scale, 4)
+    transform = rot @ scl
+
+    for obj in roots:
+        new_mw = transform @ obj.matrix_world
+        if center:
+            # Strip translation from the resulting matrix
+            new_mw.translation = (0.0, 0.0, 0.0)
+        obj.matrix_world = new_mw
+
+    bpy.context.view_layer.update()
 
 
 def render_frames(output_dir, num_frames, start_frame=0):
@@ -234,6 +316,12 @@ def parse_args():
     p.add_argument("--spin", action="store_true")
     p.add_argument("--save-blend", default=None, help="Save .blend after setup")
     p.add_argument("--no-render", action="store_true")
+    # Pre-camera mesh transforms (model/meshy/image sources)
+    p.add_argument("--rotate-x", type=float, default=0)
+    p.add_argument("--rotate-y", type=float, default=0)
+    p.add_argument("--rotate-z", type=float, default=0)
+    p.add_argument("--mesh-scale", type=float, default=1.0)
+    p.add_argument("--center", action="store_true")
     return p.parse_args(argv)
 
 
@@ -297,6 +385,14 @@ def main():
     print(f"Importing {model_path}...")
     objects = import_model(model_path)
     print(f"Imported {len(objects)} mesh(es)")
+
+    # Apply user transforms BEFORE the camera frames the asset, so the
+    # bounding box reflects the rotated / scaled / centered mesh.
+    apply_mesh_transform(
+        objects,
+        args.rotate_x, args.rotate_y, args.rotate_z,
+        args.mesh_scale, args.center,
+    )
 
     _, center, size = setup_camera(objects, args.angle)
     setup_puffy_lighting(center, size)

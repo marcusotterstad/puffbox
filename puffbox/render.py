@@ -47,6 +47,11 @@ def build_model_scene(
     axis: str,
     spin: bool,
     no_render: bool,
+    rotate_x: float = 0.0,
+    rotate_y: float = 0.0,
+    rotate_z: float = 0.0,
+    mesh_scale: float = 1.0,
+    center: bool = False,
 ) -> None:
     cmd = [
         _blender_bin(), "--background", "--python", str(RENDER_SPRITE), "--",
@@ -57,7 +62,13 @@ def build_model_scene(
         "--output", str(output),
         "--angle", str(angle),
         "--axis", axis,
+        "--rotate-x", str(rotate_x),
+        "--rotate-y", str(rotate_y),
+        "--rotate-z", str(rotate_z),
+        "--mesh-scale", str(mesh_scale),
     ]
+    if center:
+        cmd.append("--center")
     if spin:
         cmd.append("--spin")
     if save_blend:
