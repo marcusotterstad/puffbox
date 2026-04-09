@@ -3,7 +3,7 @@
 Pre-rendered 3D assets in the chunky 90s CGI / CD-ROM kid-game aesthetic. Type a word or pass a `.glb`; Blender does the rest.
 
 <p align="center">
-<code>puffbox image magnet.png --spin --frames 12 --size 64 --axis Z --rotate-x 180 --output magnet.gif</code><br>
+<code>puffbox meshy magnet.png --spin --frames 12 --size 64 --axis Z --rotate-x 180 --output magnet.gif</code><br>
 <img src="assets/magnet_spin.gif" alt="spinning cartoon horseshoe magnet">
 </p>
 
@@ -26,12 +26,14 @@ pip install -e .
 puffbox text "Aerdash"                            # puffy 3D text → PNG
 puffbox text "Start" --frames 12 --edit           # opens Blender, renders on close
 puffbox model thing.glb --spin --frames 12        # spinning sprite sheet of any model
-puffbox meshy "a cartoon mushroom" --spin         # text-to-3D via Meshy (needs MESHY_API_KEY)
-puffbox image magnet.png --spin                   # image-to-3D via Meshy (needs MESHY_API_KEY)
+puffbox meshy "a cartoon mushroom" --spin         # text-to-3D via Meshy
+puffbox meshy magnet.png --spin                   # image-to-3D (auto-detected from .png/.jpg)
 
 puffbox list                                      # session history
 puffbox resume <id> --size 128 --output a.gif     # re-render any past session
 ```
+
+Both `puffbox meshy` modes need `MESHY_API_KEY` set in your environment or `~/.env`.
 
 Output format is decided by the file extension on `--output`: `.gif` writes an animated GIF, `.png` writes a sprite sheet (or single still if 1 frame).
 

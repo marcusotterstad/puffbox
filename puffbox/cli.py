@@ -55,16 +55,11 @@ def build_parser() -> argparse.ArgumentParser:
     _add_common(p_model)
     _add_mesh_transform(p_model)
 
-    p_meshy = sub.add_parser("meshy", help="Generate via Meshy AI text-to-3D then render")
-    p_meshy.add_argument("prompt", help="Description for Meshy")
-    p_meshy.add_argument("--skip-refine", action="store_true", help="Preview-only (faster)")
+    p_meshy = sub.add_parser("meshy", help="Generate 3D via Meshy AI: text prompt OR image file path")
+    p_meshy.add_argument("input", help="Text prompt, OR a path to a .png/.jpg/.jpeg image (auto-detected)")
+    p_meshy.add_argument("--skip-refine", action="store_true", help="Preview-only (faster, text-to-3D only)")
     _add_common(p_meshy)
     _add_mesh_transform(p_meshy)
-
-    p_image = sub.add_parser("image", help="Generate via Meshy AI image-to-3D then render")
-    p_image.add_argument("image", help="Path to .png/.jpg/.jpeg image")
-    _add_common(p_image)
-    _add_mesh_transform(p_image)
 
     p_resume = sub.add_parser("resume", help="Re-render a saved session (paused or done). Override size/frames/output to remix.")
     p_resume.add_argument("session_id")
@@ -128,16 +123,31 @@ def main(argv: list[str] | None = None) -> int:
             print(f"Resize:             puffbox resume <ID> --size 128 --output out.png")
             return 0
 
-        source_map = {
-            "text":  ("text",  "text"),
-            "model": ("model", "model"),
-            "meshy": ("meshy", "prompt"),
-            "image": ("image", "image"),
-        }
-        source, value_attr = source_map[args.cmd]
+        # Resolve source from CLI subcommand. The `meshy` subcommand auto-detects
+        # between text-to-3D and image-to-3D by sniffing the input value: if it's
+        # an existing .png/.jpg/.jpeg file, route to image-to-3D; otherwise treat
+        # as a text prompt for text-to-3D.
+        if args.cmd == "meshy":
+            from pathlib import Path as _P
+            candidate = _P(args.input).expanduser()
+            if (candidate.exists() and candidate.is_file()
+                    and candidate.suffix.lower() in (".png", ".jpg", ".jpeg")):
+                source = "image"
+                value = str(candidate)
+            else:
+                source = "meshy"
+                value = args.input
+        else:
+            source_map = {
+                "text":  ("text",  "text"),
+                "model": ("model", "model"),
+            }
+            source, value_attr = source_map[args.cmd]
+            value = getattr(args, value_attr)
+
         pargs = PipelineArgs(
             source=source,
-            value=getattr(args, value_attr),
+            value=value,
             frames=args.frames,
             size=args.size,
             output=args.output,
