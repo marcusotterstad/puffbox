@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "puffbox"
+version = "0.1.0"
+description = "Pre-rendered 3D assets in the Y2K / Frutiger Aero / puffy-white aesthetic, with very low effort."
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [{ name = "Marcus" }]
+license = { text = "MIT" }
+dependencies = [
+    "Pillow>=10.0",
+    "requests>=2.28",
+]
+
+[project.scripts]
+puffbox = "puffbox.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["puffbox*"]
+
+[tool.setuptools.package-data]
+"puffbox.blender_scripts" = ["*.py"]
