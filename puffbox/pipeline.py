@@ -116,6 +116,12 @@ def run(args: PipelineArgs, *, pause_after_blend: bool = False) -> Path | str:
     # the .blend in Blender's GUI.
     skip_initial_render = pause_after_blend or args.edit
 
+    # Only pre-stretch the timeline to args.frames when there's an actual
+    # multi-frame intent (spin or edit). Otherwise leave it at 1 so a saved
+    # still session doesn't carry a phantom frame range that would trick
+    # `resume` into producing a sprite sheet on the next run.
+    build_frames = args.frames if (args.spin or args.edit) else 1
+
     # Step 1: build the Blender scene (+ optionally render)
     if args.source == "text":
         text_src.validate(args.value)
@@ -123,7 +129,7 @@ def run(args: PipelineArgs, *, pause_after_blend: bool = False) -> Path | str:
             args.value,
             font=args.font,
             save_blend=blend_path,
-            frames=args.frames,
+            frames=build_frames,
             size=args.size,
             output=frames_dir,
             angle=args.angle,
@@ -136,7 +142,7 @@ def run(args: PipelineArgs, *, pause_after_blend: bool = False) -> Path | str:
         render.build_model_scene(
             model_path,
             save_blend=blend_path,
-            frames=args.frames,
+            frames=build_frames,
             size=args.size,
             output=frames_dir,
             angle=args.angle,
@@ -150,7 +156,7 @@ def run(args: PipelineArgs, *, pause_after_blend: bool = False) -> Path | str:
         render.build_model_scene(
             glb_path,
             save_blend=blend_path,
-            frames=args.frames,
+            frames=build_frames,
             size=args.size,
             output=frames_dir,
             angle=args.angle,
