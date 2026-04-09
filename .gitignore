@@ -5,7 +5,6 @@ build/
 dist/
 .venv/
 venv/
-.puffbox-sessions/
 *.blend1
 
 # Secrets — never commit
