@@ -173,15 +173,15 @@ def create_spin(objects, center, num_frames, axis='Z'):
     return empty
 
 
-def render_frames(output_dir, num_frames):
+def render_frames(output_dir, num_frames, start_frame=0):
     os.makedirs(output_dir, exist_ok=True)
     scene = bpy.context.scene
-    for frame in range(num_frames):
-        scene.frame_set(frame)
-        filepath = os.path.join(output_dir, f"frame_{frame:03d}.png")
+    for i in range(num_frames):
+        scene.frame_set(start_frame + i)
+        filepath = os.path.join(output_dir, f"frame_{i:03d}.png")
         scene.render.filepath = filepath
         bpy.ops.render.render(write_still=True)
-        print(f"Rendered frame {frame + 1}/{num_frames}: {filepath}")
+        print(f"Rendered frame {i + 1}/{num_frames}: {filepath}")
 
 
 def render_still(output_path):
@@ -190,6 +190,32 @@ def render_still(output_path):
     scene.render.filepath = output_path
     bpy.ops.render.render(write_still=True)
     print(f"Rendered still: {output_path}")
+
+
+def setup_timeline(num_frames):
+    """Set scene frame range to 1..num_frames so the user lands on a ready
+    timeline when they open the .blend in --edit mode."""
+    scene = bpy.context.scene
+    scene.frame_start = 1
+    scene.frame_end = max(num_frames, 1)
+    scene.frame_current = 1
+
+
+def set_viewport_to_camera():
+    """Switch every 3D Viewport space in every screen layout to look through
+    the active camera. The state is saved with the .blend, so opening it in
+    Blender's GUI lands directly in camera POV — no need to hit Numpad 0."""
+    for screen in bpy.data.screens:
+        for area in screen.areas:
+            if area.type != 'VIEW_3D':
+                continue
+            for space in area.spaces:
+                if space.type != 'VIEW_3D':
+                    continue
+                try:
+                    space.region_3d.view_perspective = 'CAMERA'
+                except Exception:
+                    pass
 
 
 def parse_args():
@@ -236,11 +262,26 @@ def main():
         scene.render.film_transparent = True
         scene.render.image_settings.file_format = 'PNG'
         scene.render.image_settings.color_mode = 'RGBA'
-        if args.frames > 1:
-            render_frames(args.output, args.frames)
+
+        # Auto-detect frame range from the loaded scene unless --frames > 1 was
+        # explicitly passed (in which case caller wants to override).
+        scene_frames = max(scene.frame_end - scene.frame_start + 1, 1)
+        if args.frames and args.frames > 1:
+            num_frames = args.frames
+            start_frame = scene.frame_start
         else:
-            render_still(args.output if args.output.endswith(".png")
-                         else os.path.join(args.output, "frame_000.png"))
+            num_frames = scene_frames
+            start_frame = scene.frame_start
+
+        print(f"Render range: {num_frames} frame(s) starting at frame {start_frame} (scene: {scene.frame_start}..{scene.frame_end})")
+
+        if num_frames > 1:
+            render_frames(args.output, num_frames, start_frame=start_frame)
+        else:
+            scene.frame_set(start_frame)
+            out = args.output if args.output.endswith(".png") else os.path.join(args.output, "frame_000.png")
+            os.makedirs(os.path.dirname(os.path.abspath(out)) or ".", exist_ok=True)
+            render_still(out)
         return
 
     # build mode
@@ -264,6 +305,12 @@ def main():
     num_frames = args.frames if args.spin else 1
     if args.spin:
         create_spin(objects, center, num_frames, args.axis)
+    else:
+        # Pre-stretch the timeline to args.frames so --edit mode users land
+        # on a ready N-frame timeline they can keyframe into immediately.
+        setup_timeline(args.frames)
+
+    set_viewport_to_camera()
 
     if args.save_blend:
         os.makedirs(os.path.dirname(os.path.abspath(args.save_blend)), exist_ok=True)

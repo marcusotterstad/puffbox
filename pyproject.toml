@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "Pre-rendered 3D assets in the Y2K / Frutiger Aero / puffy-white aesthetic, with very low effort."
 readme = "README.md"
 requires-python = ">=3.10"
-authors = [{ name = "Marcus" }]
+authors = [{ name = "Puffbox contributors" }]
 license = { text = "MIT" }
 dependencies = [
     "Pillow>=10.0",

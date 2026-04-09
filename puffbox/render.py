@@ -107,6 +107,7 @@ def render_from_blend(
     size: int,
     output: Path,
 ) -> None:
+    """Render a .blend in background. frames=0 means auto-detect from scene range."""
     cmd = [
         _blender_bin(), "--background", "--python", str(RENDER_SPRITE), "--",
         "--mode", "render",
@@ -116,3 +117,18 @@ def render_from_blend(
         "--output", str(output),
     ]
     _run(cmd)
+
+
+def open_in_blender_gui(blend_path: Path) -> None:
+    """Open a .blend in Blender's GUI (foreground) and block until the user exits.
+
+    Stdout/stderr are NOT captured — the user sees Blender's terminal output
+    directly. After Blender exits, control returns to the pipeline.
+    """
+    cmd = [_blender_bin(), str(blend_path)]
+    print(f"$ {' '.join(cmd)}")
+    print("[edit] Blender is opening. Make your changes, save the .blend, then close Blender to continue.")
+    result = subprocess.run(cmd)
+    if result.returncode != 0:
+        raise RuntimeError(f"Blender (GUI) exited with code {result.returncode}")
+    print("[edit] Blender closed — continuing pipeline...")

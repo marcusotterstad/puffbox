@@ -7,8 +7,8 @@ Usage:
         --frames 1 --size 1024 --output out.png \\
         [--font /path/to/font.ttf] [--save-blend scene.blend] [--no-render] [--spin]
 
-Tunable constants live at the top of the file so Marcus can fine-tune the
-puffy look without digging through the code.
+Tunable constants live at the top of the file so the puffy look can be
+fine-tuned without digging through the code.
 """
 
 import bpy
@@ -20,9 +20,11 @@ from mathutils import Vector
 
 # ---- Puffy look tunables -----------------------------------------------------
 EXTRUDE = 0.35           # text extrusion depth (front-to-back thickness)
-BEVEL_DEPTH = 0.12       # rounded edge on the text curve itself
-BEVEL_RES = 6            # bevel resolution
+BEVEL_DEPTH = 0.04       # rounded edge on the text curve itself — keep small to avoid self-intersection on thin glyph strokes
+BEVEL_RES = 4            # bevel resolution
 SOLIDIFY_THICKNESS = 0.0   # set >0 to inflate more via solidify
+VOXEL_REMESH_SIZE = 0.0  # voxel remesh disabled — kept the v2 look (small spikes acceptable, was way better than the post-remesh attempts)
+CAST_FACTOR = 0.0
 SUBSURF_LEVELS = 4       # viewport/render subdivision
 SHRINKWRAP_OFFSET = 0.0  # set >0 to puff outward more
 BASE_COLOR = (0.95, 0.96, 0.98, 1.0)  # slightly off-white so shading reads
@@ -91,6 +93,13 @@ def build_text_object(text, font_path_hint=None):
     bpy.ops.object.convert(target='MESH')
     mesh_obj = bpy.context.object
 
+    # Clean up mesh — merge near-duplicate verts and recalculate normals.
+    bpy.ops.object.mode_set(mode='EDIT')
+    bpy.ops.mesh.select_all(action='SELECT')
+    bpy.ops.mesh.remove_doubles(threshold=0.001)
+    bpy.ops.mesh.normals_make_consistent(inside=False)
+    bpy.ops.object.mode_set(mode='OBJECT')
+
     # External fonts may give the converted mesh a huge matrix_world scale.
     # Bake transforms into vertices, then resize so biggest dim = 1 unit.
     bpy.ops.object.select_all(action='DESELECT')
@@ -107,13 +116,31 @@ def build_text_object(text, font_path_hint=None):
             v.co = v.co * scale
         mesh_obj.data.update()
 
-    # Solidify for extra thickness/inflation
+    # Solidify for extra thickness/inflation (off by default — voxel remesh handles inflation)
     if SOLIDIFY_THICKNESS > 0:
         solid = mesh_obj.modifiers.new("Solidify", 'SOLIDIFY')
         solid.thickness = SOLIDIFY_THICKNESS
         solid.offset = 0
         solid.use_even_offset = True
         solid.use_quality_normals = True
+
+    # Voxel remesh — uniform watertight topology, no self-intersections.
+    if VOXEL_REMESH_SIZE > 0:
+        remesh = mesh_obj.modifiers.new("Remesh", 'REMESH')
+        remesh.mode = 'VOXEL'
+        remesh.voxel_size = VOXEL_REMESH_SIZE
+        remesh.use_smooth_shade = True
+        bpy.ops.object.modifier_apply(modifier="Remesh")
+
+    # Cast to sphere — pushes vertices outward toward a sphere envelope.
+    # This is what gives the actual "balloon / inflated" look.
+    if CAST_FACTOR > 0:
+        cast = mesh_obj.modifiers.new("Cast", 'CAST')
+        cast.cast_type = 'SPHERE'
+        cast.factor = CAST_FACTOR
+        cast.use_x = True
+        cast.use_y = True
+        cast.use_z = True
 
     # Subdivision surface for smooth puffy shape
     subsurf = mesh_obj.modifiers.new("Subsurf", 'SUBSURF')
@@ -241,6 +268,12 @@ def main():
     num_frames = args.frames if args.spin else 1
     if args.spin:
         render_sprite.create_spin([mesh_obj], center, num_frames, args.axis)
+    else:
+        # Pre-stretch the timeline to args.frames so --edit users land on a
+        # ready N-frame timeline they can keyframe into immediately.
+        render_sprite.setup_timeline(args.frames)
+
+    render_sprite.set_viewport_to_camera()
 
     if args.save_blend:
         os.makedirs(os.path.dirname(os.path.abspath(args.save_blend)), exist_ok=True)

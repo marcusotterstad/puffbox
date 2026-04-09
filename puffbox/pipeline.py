@@ -35,6 +35,7 @@ class PipelineArgs:
     brightness: float = 1.0
     font: str | None = None
     skip_refine: bool = False
+    edit: bool = False             # if True: build scene → open Blender GUI → wait → render
 
 
 @dataclass
@@ -64,24 +65,26 @@ def _read_manifest(session_dir: Path) -> Session:
 
 
 def _finalize_output(frames_dir: Path, args: PipelineArgs) -> Path:
-    """Assemble frames into final output — either a single PNG or sprite sheet."""
+    """Assemble frames into final output. Detects sprite-sheet vs still by
+    counting actual rendered frame_*.png files in frames_dir — so edit-mode
+    sessions where the user set up a multi-frame animation produce a sprite
+    sheet automatically, without needing the --spin flag."""
     output = Path(args.output).expanduser().resolve()
-    if args.spin and args.frames > 1:
+    frames = sorted(frames_dir.glob("frame_*.png"))
+    if not frames:
+        raise FileNotFoundError(f"No rendered frames in {frames_dir}")
+
+    if len(frames) > 1:
         return build_spritesheet(
             frames_dir,
             output,
             saturation=args.saturation,
             brightness=args.brightness,
         )
-    # still: just copy/process the single frame
+
+    # Single still
     from PIL import Image, ImageEnhance
-    still = frames_dir / "frame_000.png"
-    if not still.exists():
-        # maybe output was already the still
-        if output.exists():
-            return output
-        raise FileNotFoundError(f"Expected still frame at {still}")
-    img = Image.open(still).convert("RGBA")
+    img = Image.open(frames[0]).convert("RGBA")
     if args.saturation != 1.0:
         img = ImageEnhance.Color(img).enhance(args.saturation)
     if args.brightness != 1.0:
@@ -92,14 +95,26 @@ def _finalize_output(frames_dir: Path, args: PipelineArgs) -> Path:
 
 
 def run(args: PipelineArgs, *, pause_after_blend: bool = False) -> Path | str:
-    """Run a full pipeline. If pause_after_blend, returns session id instead of output path."""
+    """Run a full pipeline.
+
+    Modes:
+    - Default: build scene → render → output
+    - pause_after_blend=True: build scene → save .blend → STOP. Returns session id.
+      Caller resumes later with `puffbox resume <id>`.
+    - args.edit=True: build scene → open Blender GUI (blocking) → wait for user
+      to save and close → render whatever they set up → output. One-shot flow,
+      no separate resume command needed.
+    """
     sid, session_dir = _new_session_dir()
     blend_path = session_dir / "scene.blend"
     frames_dir = session_dir / "frames"
     frames_dir.mkdir(exist_ok=True)
 
     glb_path: Path | None = None
-    num_frames = args.frames if args.spin else 1
+
+    # In edit mode we always defer the render until after the user has tweaked
+    # the .blend in Blender's GUI.
+    skip_initial_render = pause_after_blend or args.edit
 
     # Step 1: build the Blender scene (+ optionally render)
     if args.source == "text":
@@ -108,26 +123,26 @@ def run(args: PipelineArgs, *, pause_after_blend: bool = False) -> Path | str:
             args.value,
             font=args.font,
             save_blend=blend_path,
-            frames=num_frames,
+            frames=args.frames,
             size=args.size,
             output=frames_dir,
             angle=args.angle,
             axis=args.axis,
             spin=args.spin,
-            no_render=pause_after_blend,
+            no_render=skip_initial_render,
         )
     elif args.source == "model":
         model_path = model_src.resolve(args.value)
         render.build_model_scene(
             model_path,
             save_blend=blend_path,
-            frames=num_frames,
+            frames=args.frames,
             size=args.size,
             output=frames_dir,
             angle=args.angle,
             axis=args.axis,
             spin=args.spin,
-            no_render=pause_after_blend,
+            no_render=skip_initial_render,
         )
     elif args.source == "meshy":
         glb_path = session_dir / "model.glb"
@@ -135,13 +150,13 @@ def run(args: PipelineArgs, *, pause_after_blend: bool = False) -> Path | str:
         render.build_model_scene(
             glb_path,
             save_blend=blend_path,
-            frames=num_frames,
+            frames=args.frames,
             size=args.size,
             output=frames_dir,
             angle=args.angle,
             axis=args.axis,
             spin=args.spin,
-            no_render=pause_after_blend,
+            no_render=skip_initial_render,
         )
     else:
         raise ValueError(f"Unknown source: {args.source}")
@@ -162,29 +177,86 @@ def run(args: PipelineArgs, *, pause_after_blend: bool = False) -> Path | str:
         print(f"    puffbox resume {sid}\n")
         return sid
 
+    if args.edit:
+        # Open Blender GUI on the scene, block until user closes it.
+        render.open_in_blender_gui(blend_path)
+        # Then render whatever they set up, auto-detecting the frame range
+        # from the (now possibly hand-edited) scene.
+        render.render_from_blend(
+            blend_path,
+            frames=0,  # 0 = auto-detect from scene.frame_start..frame_end
+            size=args.size,
+            output=frames_dir,
+        )
+
     output = _finalize_output(frames_dir, args)
     session.status = "done"
     _write_manifest(session_dir, session)
     return output
 
 
-def resume(session_id: str) -> Path:
+def resume(
+    session_id: str,
+    *,
+    size: int | None = None,
+    output: str | None = None,
+    frames: int | None = None,
+) -> Path:
+    """Re-render a saved session. Optional kwargs override the manifest:
+    - size:    re-render at a different resolution (e.g. 128 from a 512 source)
+    - output:  write the result somewhere new instead of overwriting the old one
+    - frames:  override the frame count auto-detected from the .blend
+    """
     session_dir = SESSIONS_DIR / session_id
     if not session_dir.exists():
         raise FileNotFoundError(f"No session: {session_id}")
     session = _read_manifest(session_dir)
-    args = PipelineArgs(**session.args)
+    # Drop unknown fields gracefully (forward-compat with older manifests).
+    known = {f.name for f in PipelineArgs.__dataclass_fields__.values()}
+    args = PipelineArgs(**{k: v for k, v in session.args.items() if k in known})
+    if size is not None:
+        args.size = size
+    if output is not None:
+        args.output = output
+    if frames is not None:
+        args.frames = frames
+
     frames_dir = session_dir / "frames"
     frames_dir.mkdir(exist_ok=True)
-    num_frames = args.frames if args.spin else 1
+
+    # Wipe stale frames from any previous render so the finalize step counts
+    # only what THIS render produced.
+    for old in frames_dir.glob("frame_*.png"):
+        old.unlink()
 
     render.render_from_blend(
         Path(session.blend_path),
-        frames=num_frames,
+        frames=frames or 0,  # 0 = auto-detect from scene.frame_start..frame_end
         size=args.size,
         output=frames_dir,
     )
-    output = _finalize_output(frames_dir, args)
+    output_path = _finalize_output(frames_dir, args)
     session.status = "done"
     _write_manifest(session_dir, session)
-    return output
+    return output_path
+
+
+def list_sessions() -> list[dict]:
+    """Return all sessions sorted newest-first. Each entry is the parsed manifest."""
+    sessions = []
+    if not SESSIONS_DIR.exists():
+        return sessions
+    for d in sorted(SESSIONS_DIR.iterdir(), reverse=True):
+        if not d.is_dir():
+            continue
+        manifest = d / "manifest.json"
+        if not manifest.exists():
+            continue
+        try:
+            data = json.loads(manifest.read_text())
+            # Decorate with whether the .blend still exists on disk
+            data["_blend_exists"] = Path(data.get("blend_path", "")).exists()
+            sessions.append(data)
+        except Exception:
+            continue
+    return sessions
