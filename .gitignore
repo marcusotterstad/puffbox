@@ -7,3 +7,9 @@ dist/
 venv/
 .puffbox-sessions/
 *.blend1
+
+# Secrets — never commit
+.env
+.env.*
+*.key
+secrets.json
