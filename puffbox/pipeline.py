@@ -14,11 +14,12 @@ from . import render
 from .sources import model as model_src
 from .sources import text as text_src
 from .sources import meshy as meshy_src
+from .sources import image as image_src
 from .spritesheet import build_spritesheet, build_gif
 
 SESSIONS_DIR = Path.home() / ".puffbox" / "sessions"
 
-SourceKind = Literal["model", "text", "meshy"]
+SourceKind = Literal["model", "text", "meshy", "image"]
 
 
 @dataclass
@@ -173,6 +174,21 @@ def run(args: PipelineArgs, *, pause_after_blend: bool = False) -> Path | str:
     elif args.source == "meshy":
         glb_path = session_dir / "model.glb"
         meshy_src.fetch_glb(args.value, glb_path, skip_refine=args.skip_refine)
+        render.build_model_scene(
+            glb_path,
+            save_blend=blend_path,
+            frames=build_frames,
+            size=args.size,
+            output=frames_dir,
+            angle=args.angle,
+            axis=args.axis,
+            spin=args.spin,
+            no_render=skip_initial_render,
+        )
+    elif args.source == "image":
+        image_path = image_src.resolve(args.value)
+        glb_path = session_dir / "model.glb"
+        meshy_src.fetch_glb_from_image(image_path, glb_path)
         render.build_model_scene(
             glb_path,
             save_blend=blend_path,

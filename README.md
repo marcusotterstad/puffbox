@@ -27,18 +27,22 @@ puffbox text "Aerdash"                            # puffy 3D text → PNG
 puffbox text "Start" --frames 12 --edit           # opens Blender, renders on close
 puffbox model thing.glb --spin --frames 12        # spinning sprite sheet of any model
 puffbox meshy "a cartoon mushroom" --spin         # text-to-3D via Meshy (needs MESHY_API_KEY)
+puffbox image magnet.png --spin                   # image-to-3D via Meshy (needs MESHY_API_KEY)
 
 puffbox list                                      # session history
-puffbox resume <id> --size 128 --output a.png     # re-render any past session
+puffbox resume <id> --size 128 --output a.gif     # re-render any past session
 ```
 
-| flag | what |
+Output format is decided by the file extension on `--output`: `.gif` writes an animated GIF, `.png` writes a sprite sheet (or single still if 1 frame).
+
+| flag | description |
 |---|---|
 | `--frames N` | sprite sheet length / pre-stretched timeline in `--edit` |
 | `--size N` | render resolution (px) |
-| `--output PATH` | output PNG path |
-| `--spin` | auto 360° spin → sprite sheet |
+| `--output PATH` | output path; `.gif` or `.png` |
+| `--spin` | auto 360° spin → sprite sheet or GIF |
 | `--edit` | open Blender GUI, render after you save and close |
+| `--fps N` | animation speed when output is a `.gif` (default 20) |
 | `--axis X\|Y\|Z`, `--angle N`, `--saturation`, `--brightness` | tweaks |
 
 `--edit` opens Blender already in camera view with the timeline pre-set to `--frames`. Save and close — Puffbox auto-renders. If you keyframed an animation, you get a sprite sheet; if not, a single PNG. Output type is decided by what you built, not a flag.

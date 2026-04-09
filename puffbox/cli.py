@@ -45,6 +45,10 @@ def build_parser() -> argparse.ArgumentParser:
     p_meshy.add_argument("--skip-refine", action="store_true", help="Preview-only (faster)")
     _add_common(p_meshy)
 
+    p_image = sub.add_parser("image", help="Generate via Meshy AI image-to-3D then render")
+    p_image.add_argument("image", help="Path to .png/.jpg/.jpeg image")
+    _add_common(p_image)
+
     p_resume = sub.add_parser("resume", help="Re-render a saved session (paused or done). Override size/frames/output to remix.")
     p_resume.add_argument("session_id")
     p_resume.add_argument("--size", type=int, default=None,
@@ -107,7 +111,12 @@ def main(argv: list[str] | None = None) -> int:
             print(f"Resize:             puffbox resume <ID> --size 128 --output out.png")
             return 0
 
-        source_map = {"text": ("text", "text"), "model": ("model", "model"), "meshy": ("meshy", "prompt")}
+        source_map = {
+            "text":  ("text",  "text"),
+            "model": ("model", "model"),
+            "meshy": ("meshy", "prompt"),
+            "image": ("image", "image"),
+        }
         source, value_attr = source_map[args.cmd]
         pargs = PipelineArgs(
             source=source,
