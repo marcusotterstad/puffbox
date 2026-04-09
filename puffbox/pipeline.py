@@ -14,7 +14,7 @@ from . import render
 from .sources import model as model_src
 from .sources import text as text_src
 from .sources import meshy as meshy_src
-from .spritesheet import build_spritesheet
+from .spritesheet import build_spritesheet, build_gif
 
 SESSIONS_DIR = Path.home() / ".puffbox" / "sessions"
 
@@ -36,6 +36,7 @@ class PipelineArgs:
     font: str | None = None
     skip_refine: bool = False
     edit: bool = False             # if True: build scene → open Blender GUI → wait → render
+    fps: float = 20.0              # frames per second when output is a .gif
 
 
 @dataclass
@@ -65,14 +66,33 @@ def _read_manifest(session_dir: Path) -> Session:
 
 
 def _finalize_output(frames_dir: Path, args: PipelineArgs) -> Path:
-    """Assemble frames into final output. Detects sprite-sheet vs still by
-    counting actual rendered frame_*.png files in frames_dir — so edit-mode
-    sessions where the user set up a multi-frame animation produce a sprite
-    sheet automatically, without needing the --spin flag."""
+    """Assemble frames into the final output. The output format is decided
+    by the file extension of args.output:
+
+      - .gif  → animated GIF (requires >1 frame; falls back to single still
+                if only one frame was rendered)
+      - .png  → sprite sheet if >1 frame, single still if 1 frame
+      - other → single still PNG
+
+    The number of frames is detected by counting frame_*.png files in
+    frames_dir, so --edit mode sessions produce GIFs/sprite sheets
+    automatically based on what the user actually built — no separate flag.
+    """
     output = Path(args.output).expanduser().resolve()
     frames = sorted(frames_dir.glob("frame_*.png"))
     if not frames:
         raise FileNotFoundError(f"No rendered frames in {frames_dir}")
+
+    suffix = output.suffix.lower()
+
+    if len(frames) > 1 and suffix == ".gif":
+        return build_gif(
+            frames_dir,
+            output,
+            fps=args.fps,
+            saturation=args.saturation,
+            brightness=args.brightness,
+        )
 
     if len(frames) > 1:
         return build_spritesheet(

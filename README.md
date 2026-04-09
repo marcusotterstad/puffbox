@@ -3,15 +3,13 @@
 Pre-rendered 3D assets in the chunky 90s CGI / CD-ROM kid-game aesthetic. Type a word or pass a `.glb`; Blender does the rest.
 
 <p align="center">
-  <img src="assets/magnet_spin.gif" alt="spinning cartoon magnet" height="96">
-  &nbsp;&nbsp;
-  <img src="assets/puffbox_text_spin.gif" alt="puffy 3D PUFFBOX text spinning" height="96">
+<code>puffbox meshy "horseshoe magnet, half red half blue, cartoon" --spin --frames 12 --size 64 --axis Z --output magnet.gif</code><br>
+<img src="assets/magnet_spin.gif" alt="spinning cartoon horseshoe magnet">
 </p>
 
 <p align="center">
-  <img src="assets/anchor_sizes.png" alt="anchor rendered at 64, 128, 256, 512 px" width="640">
-  <br>
-  <em>One model, four sizes via <code>puffbox resume &lt;id&gt; --size N</code>.</em>
+<code>puffbox text "PUFFBOX" --frames 12 --size 128 --edit --output puffbox.gif</code><br>
+<img src="assets/puffbox_text_128.gif" alt="puffy 3D PUFFBOX text">
 </p>
 
 ## Install

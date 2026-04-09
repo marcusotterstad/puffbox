@@ -16,6 +16,8 @@ def _add_common(p: argparse.ArgumentParser) -> None:
     p.add_argument("--spin", action="store_true", help="Spin 360° and output sprite sheet")
     p.add_argument("--saturation", type=float, default=1.0)
     p.add_argument("--brightness", type=float, default=1.0)
+    p.add_argument("--fps", type=float, default=20.0,
+                   help="Animation speed when --output is a .gif (default: 20)")
     p.add_argument("--pause-after-blend", action="store_true",
                    help="Stop after building the .blend so you can hand-tweak in Blender, then run `puffbox resume <id>`")
     p.add_argument("--edit", action="store_true",
@@ -121,6 +123,7 @@ def main(argv: list[str] | None = None) -> int:
             font=getattr(args, "font", None),
             skip_refine=getattr(args, "skip_refine", False),
             edit=args.edit,
+            fps=args.fps,
         )
         if args.pause_after_blend and args.edit:
             print("[error] --pause-after-blend and --edit are mutually exclusive", file=sys.stderr)
