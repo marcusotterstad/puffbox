@@ -1,8 +1,10 @@
 # Puffbox
 
-Pre-rendered 3D assets in the 90s / Y2K / Frutiger Aero aesthetic — puffy white inflated shapes, soft lighting, transparent PNG sprites — with very low effort.
+Pre-rendered 3D assets in the chunky 90s CGI aesthetic — the look of CD-ROM kid games, cereal-box adventures, and early 3D rendered icons. Think *Cap'n Crunch's Crunchling Adventure*, *Putt-Putt*, *Pajama Sam*, *JumpStart*, *Reader Rabbit*. Glossy plastic-toy materials, baked lighting, saturated colors, the unmistakable "rendered in Maya 1996" feel.
 
-Puffbox turns a single command into a ready-to-drop sprite. Give it a word, a 3D model, or a text prompt; it drives Blender in the background and spits out a transparent PNG (or a sprite sheet) in the signature puffy-white look. When the defaults aren't quite right, drop into Blender for a few clicks and Puffbox finishes the rest automatically.
+Puffbox turns a single command into a ready-to-drop sprite. Give it a word, a 3D model, or a text prompt; it drives Blender in the background and spits out a transparent PNG or a sprite sheet. When the defaults aren't quite right, drop into Blender for a few clicks and Puffbox finishes the rest automatically.
+
+The first shipped material is **puffy white** — soft inflated white shapes, faint blue rim light, transparent background. It's one preset, not the identity of the tool. More material presets (glossy plastic, jelly, frosted, toy-rubber) are on the roadmap, and the underlying pipeline takes any `.glb` model and renders it the same way.
 
 ## Requirements
 
@@ -26,7 +28,7 @@ pip install -e .
 
 ## Usage
 
-### Puffy 3D text — the flagship
+### Puffy 3D text — the first shipped material
 
 ```bash
 # Single still PNG of the word "Aerdash" in puffy white material
@@ -172,11 +174,11 @@ If you find a tuning combo you like, the easiest way to make it permanent is to 
 
 Future ideas:
 
-- **Material presets** — `--material puffy|glossy|jelly|frosted`
+- **More material presets** — `--material puffy|glossy-plastic|jelly|frosted|toy-rubber|chrome`. Each preset is a Blender material + lighting rig combination tuned for one slice of the 90s CGI aesthetic. Puffy white is shipped; the rest are next.
 - **Per-letter inflation for text** — currently the whole word is one mesh; per-letter origin would give cleaner balloon shapes
 - **GPT-Image input** — rasterize an AI image → depth → 3D displacement
 - **Expanded Meshy modes** — sketch-to-3D, image-to-3D
-- **Background presets** — optional cloud / gradient backdrops for full Y2K wallpaper vibes
+- **Background presets** — optional CGI backdrops (cave walls, plastic playmat, gradient sky) for full kid-game vibes
 - **Batch manifests** — describe a whole asset pack in YAML, run once
 - **Web UI** — a tiny frontend for non-CLI users, so people can generate assets without installing Blender locally
 

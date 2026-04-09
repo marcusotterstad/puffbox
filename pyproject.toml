@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "puffbox"
 version = "0.1.0"
-description = "Pre-rendered 3D assets in the Y2K / Frutiger Aero / puffy-white aesthetic, with very low effort."
+description = "Pre-rendered 3D assets in the chunky 90s CGI / CD-ROM kid-game aesthetic, with very low effort."
 readme = "README.md"
 requires-python = ">=3.10"
 authors = [{ name = "Puffbox contributors" }]
