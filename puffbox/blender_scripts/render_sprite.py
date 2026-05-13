@@ -133,7 +133,13 @@ def setup_puffy_lighting(center, size):
 
 def setup_render(size):
     scene = bpy.context.scene
-    scene.render.engine = 'BLENDER_EEVEE_NEXT'
+    # EEVEE was 'BLENDER_EEVEE_NEXT' in Blender 4.2–5.0 and renamed back to
+    # 'BLENDER_EEVEE' in 5.1. Pick whichever the running Blender supports.
+    eevee_options = bpy.types.RenderSettings.bl_rna.properties['engine'].enum_items.keys()
+    if 'BLENDER_EEVEE_NEXT' in eevee_options:
+        scene.render.engine = 'BLENDER_EEVEE_NEXT'
+    else:
+        scene.render.engine = 'BLENDER_EEVEE'
     scene.render.resolution_x = size
     scene.render.resolution_y = size
     scene.render.resolution_percentage = 100
@@ -172,7 +178,17 @@ def create_spin(objects, center, num_frames, axis='Z'):
     # the handle TYPES are also forced to VECTOR (which makes the handles point
     # straight at the next/previous keyframe). Without this you get slow-fast-slow.
     if empty.animation_data and empty.animation_data.action:
-        for fc in empty.animation_data.action.fcurves:
+        action = empty.animation_data.action
+        # Blender ≤5.0 exposed Action.fcurves directly. Blender 5.1+ moved
+        # them under layers/strips/channelbags. Walk both shapes.
+        fcurves = []
+        if hasattr(action, 'fcurves'):
+            fcurves.extend(action.fcurves)
+        for layer in getattr(action, 'layers', []):
+            for strip in getattr(layer, 'strips', []):
+                for cb in getattr(strip, 'channelbags', []):
+                    fcurves.extend(getattr(cb, 'fcurves', []))
+        for fc in fcurves:
             fc.extrapolation = 'LINEAR'
             for kf in fc.keyframe_points:
                 kf.interpolation = 'LINEAR'
