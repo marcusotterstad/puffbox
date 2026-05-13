@@ -44,7 +44,7 @@ Already have a `.glb`, `.fbx`, or `.obj`? Spin it through the same puffy pipelin
 puffbox model thing.glb --spin --frames 12        # spinning sprite sheet of any model
 ```
 
-## Generate 3D from a prompt or image (optional)
+## Generate 3D from a prompt or image
 
 If you set `MESHY_API_KEY` (sign up at [meshy.ai](https://www.meshy.ai)), Puffbox can generate the 3D model for you from text or an image, then render it in the same style.
 
