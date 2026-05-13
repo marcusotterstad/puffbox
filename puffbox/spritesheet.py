@@ -41,15 +41,31 @@ def build_spritesheet(
     saturation: float = 1.0,
     brightness: float = 1.0,
     skip_indices: Iterable[int] = (),
+    max_width: int = 16384,
 ) -> Path:
+    """Pack frames into a sheet. Defaults to a horizontal strip; if that
+    would exceed `max_width` (typical GPU texture limit), falls back to a
+    grid laid out left-to-right, top-to-bottom. Consumers detect grid
+    layout from the sheet's width vs. frame width."""
     frames_dir = Path(frames_dir)
     output = Path(output)
     images = _load_frames(frames_dir, saturation, brightness, skip_indices)
 
+    n = len(images)
     w, h = images[0].size
-    sheet = Image.new("RGBA", (w * len(images), h), (0, 0, 0, 0))
+
+    # Pick cols so total sheet width stays ≤ max_width. ceil-divide rows.
+    if n * w <= max_width:
+        cols = n
+    else:
+        cols = max(1, max_width // w)
+    rows = (n + cols - 1) // cols
+
+    sheet = Image.new("RGBA", (w * cols, h * rows), (0, 0, 0, 0))
     for i, img in enumerate(images):
-        sheet.paste(img, (i * w, 0))
+        col = i % cols
+        row = i // cols
+        sheet.paste(img, (col * w, row * h))
     output.parent.mkdir(parents=True, exist_ok=True)
     sheet.save(output)
     return output
